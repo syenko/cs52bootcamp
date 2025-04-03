@@ -9,6 +9,7 @@ export default defineSchema({
     email: v.string(),
     clerkId: v.string(),
     createdAt: v.number(),
+    groups: v.array(v.string()),
   }).index("by_clerk_id", ["clerkId"]),
 
   messages: defineTable({
@@ -17,5 +18,16 @@ export default defineSchema({
     userId: v.string(),
     userName: v.string(),
     createdAt: v.number(),
+  }).index("by_user_id", ["userId"]),
+
+  groups: defineTable({
+    name: v.string(),
+    createdAt: v.number(),
+    memberIds: v.array(v.string()),
+  }),
+
+  calendarInfo: defineTable({
+    userId: v.string(),
+    data: v.string(),
   }).index("by_user_id", ["userId"]),
 });

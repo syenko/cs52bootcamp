@@ -28,6 +28,7 @@ export const createUser = mutation({
       email: args.email,
       clerkId: identity.subject,
       createdAt: Date.now(),
+      groups: [],
     });
 
     return userId;
