@@ -17,11 +17,11 @@ https://oklch.com
 @layer base {
   :root {
     /* Space-themed color palette using HSL values */
-    --background: 240 10% 4%; /* Deep space black */
-    --foreground: 0 0% 95%; /* Almost white text */
-    --primary: 220 70% 50%; /* Blue accent */
+    --background: 21 100% 85%; /* Yellow accent */
+    --foreground: 263 6% 43%; /* Purple */
+    --primary: 358 60% 75%; /* Pink */
     --primary-foreground: 0 0% 98%; /* Text on primary */
-    --secondary: 240 5% 20%; /* Secondary color */
+    --secondary: 12 100% 82%; /* Secondary color */
     --secondary-foreground: 0 0% 95%; /* Text on secondary */
 
     /* UI element colors */
