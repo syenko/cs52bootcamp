@@ -1,6 +1,70 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+export const createGroup = mutation({
+  args: {
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    const groupId = await ctx.db.insert("groups", {
+      name: args.name,
+      createdAt: Date.now(),
+      memberIds: [existingUser._id],
+    });
+
+    return groupId;
+  },
+});
+
+export const joinGroup = mutation({
+  args: {
+    groupId: v.id("groups"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    const existingGroup = await ctx.db.get(args.groupId);
+
+    if (!existingGroup) {
+      throw new Error("Group not found");
+    }
+
+    ctx.db.patch(args.groupId, {
+      memberIds: [...existingGroup.memberIds, existingUser._id],
+    });
+
+    return existingGroup._id;
+  },
+});
+
 export const createUser = mutation({
   args: {
     name: v.string(),
