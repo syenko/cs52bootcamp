@@ -14,7 +14,7 @@ export function LandingPage() {
             </div>
 
             <div>
-              <H1 className="mb-4">When to Eat</H1>
+              <H1 className="mb-4">When2Eat</H1>
             </div>
 
             <Lead className="max-w-2xl mb-4 md:mb-8">

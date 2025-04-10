@@ -8,28 +8,17 @@ import {
   MainContent,
   TwoColumnLayout,
   Card,
-  Section,
 } from "@/components/layout";
 import { Logo } from "@/components/logo";
-import { H2, H3, P } from "@/components/ui/typography";
+import { H3 } from "@/components/ui/typography";
 import { Button } from "@/components/ui/button";
 import {
-  ChatMessage,
-  ChatInput,
   ChatMessageList,
+  ChatInput,
   KomodoTypingIndicator,
-  type ChatMessageProps,
 } from "@/components/chat-message";
+import * as ical from "ical";
 
-interface StudentRoute {
-  path: string;
-  name: string;
-  component?: React.ComponentType<any>;
-}
-
-interface HomePageProps {}
-
-// Define the message structure from the database
 interface DbMessage {
   _id: string;
   _creationTime: number;
@@ -40,14 +29,17 @@ interface DbMessage {
   createdAt: number;
 }
 
-export function HomePage({}: HomePageProps) {
+export function HomePage() {
   const { user } = useUser();
   const navigate = useNavigate();
   const createUser = useMutation(api.mutations.createUser);
   const createMessage = useMutation(api.mutations.createMessage);
+  const saveFreeTimes = useMutation(api.mutations.saveFreeTimes);
   const currentUser = useQuery(api.queries.getCurrentUser);
   const allMessages = useQuery(api.queries.getAllMessages) || [];
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Create user on first login
   useEffect(() => {
@@ -59,28 +51,116 @@ export function HomePage({}: HomePageProps) {
     }
   }, [user, currentUser, createUser]);
 
-  // Handle sending a message
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !user) return;
 
     setIsLoading(true);
-
-    // Save to database
     await createMessage({
       content,
       sender: "user",
     });
-
     setIsLoading(false);
   };
 
-  // Function to get user name for a message
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  }; 
+
+  const handleProcessFile = async () => {
+    if (!selectedFile || !currentUser) return;
+  
+    setIsProcessing(true);
+    const reader = new FileReader();
+  
+    reader.onload = async (e) => {
+      const content = e.target?.result as string;
+  
+      try {
+        const parsedData = ical.parseICS(content);
+        const weeklyTimes: number[][][] = [[], [], [], [], []];
+  
+        const now = new Date();
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+        monday.setHours(0, 0, 0, 0);
+  
+        for (let dayIndex = 0; dayIndex < 5; dayIndex++) {
+          const currentDay = new Date(monday);
+          currentDay.setDate(monday.getDate() + dayIndex);
+          
+          const targetStart = new Date(currentDay);
+          targetStart.setHours(11, 0, 0);
+          const targetEnd = new Date(currentDay);
+          targetEnd.setHours(13, 30, 0);
+  
+          const daysEvents = Object.values(parsedData)
+            .filter((item: any) => item.type === "VEVENT")
+            .filter((event: any) => event.start && event.end)
+            .map((event: any) => ({
+              start: new Date(event.start),
+              end: new Date(event.end)
+            }))
+            .filter(event => event.start < targetEnd && event.end > targetStart)
+            .map(event => ({
+              start: new Date(Math.max(event.start.getTime(), targetStart.getTime())),
+              end: new Date(Math.min(event.end.getTime(), targetEnd.getTime()))
+            }))
+            .sort((a, b) => a.start.getTime() - b.start.getTime());
+  
+          let currentTime = targetStart;
+          for (const event of daysEvents) {
+            if (currentTime < event.start) {
+              weeklyTimes[dayIndex].push([
+                currentTime.getHours() * 100 + currentTime.getMinutes(),
+                event.start.getHours() * 100 + event.start.getMinutes()
+              ]);
+            }
+            currentTime = event.end > currentTime ? event.end : currentTime;
+          }
+          
+          if (currentTime < targetEnd) {
+
+            if (currentTime.getHours() * 100 != targetEnd.getHours() * 100 || (targetEnd.getMinutes() - currentTime.getMinutes()) > 30) {
+              weeklyTimes[dayIndex].push([
+                currentTime.getHours() * 100 + currentTime.getMinutes(),
+                targetEnd.getHours() * 100 + targetEnd.getMinutes()
+              ]);
+            }
+          }
+        }
+  
+        await saveFreeTimes({
+          userId: currentUser._id,
+          times: weeklyTimes
+        });
+  
+        await createMessage({
+          content: `Processed ${weeklyTimes.flat().length} meal time slots`,
+          sender: "komodo"
+        });
+  
+      } catch (error) {
+        await createMessage({
+          content: "Error processing schedule file",
+          sender: "komodo"
+        });
+        console.error("Processing error:", error);
+      } finally {
+        setIsProcessing(false);
+        setSelectedFile(null);
+      }
+    };
+  
+    reader.readAsText(selectedFile);
+  };
+
   const getUserName = (msg: DbMessage) => {
-    // If it's the current user's message
     if (currentUser && msg.userId === currentUser._id) {
       return `You (${msg.userName})`;
     }
-    // Otherwise show the user's name
     return msg.userName;
   };
 
@@ -102,7 +182,6 @@ export function HomePage({}: HomePageProps) {
           {/* Left Column - Chat */}
           <Card className="flex flex-col h-[70vh]">
             <H3 className="mb-4">Global Chat Channel</H3>
-
             <div className="flex-1 overflow-y-auto mb-4">
               <ChatMessageList
                 messages={allMessages.map((msg: DbMessage) => ({
@@ -114,12 +193,34 @@ export function HomePage({}: HomePageProps) {
               />
               {isLoading && <KomodoTypingIndicator />}
             </div>
-
             <ChatInput onSendMessage={handleSendMessage} />
           </Card>
 
-          <Card>
-            <div>Right Column</div>
+          {/* Right Column - Upload Schedule */}
+          <Card className="flex flex-col gap-4">
+            <H3>Upload Schedule</H3>
+            <input
+              type="file"
+              id="fileInput"
+              accept=".ics"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById("fileInput")?.click()}
+              >
+                {selectedFile ? `Selected: ${selectedFile.name}` : "Select ICS File"}
+              </Button>
+              <Button
+                variant="solid"
+                onClick={handleProcessFile}
+                disabled={!selectedFile || isProcessing}
+              >
+                {isProcessing ? "Processing..." : "Upload Schedule"}
+              </Button>
+            </div>
           </Card>
         </TwoColumnLayout>
       </MainContent>

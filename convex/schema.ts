@@ -26,8 +26,9 @@ export default defineSchema({
     memberIds: v.array(v.string()),
   }),
 
-  calendarInfo: defineTable({
+  freeTimes: defineTable({
     userId: v.string(),
-    data: v.string(),
+    times: v.array(v.array(v.array(v.float64())))
   }).index("by_user_id", ["userId"]),
+
 });
