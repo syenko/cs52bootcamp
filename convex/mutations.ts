@@ -27,6 +27,10 @@ export const createGroup = mutation({
       memberIds: [existingUser._id],
     });
 
+    ctx.db.patch(existingUser._id, {
+      groups: [...existingUser.groups, groupId],
+    });
+
     return groupId;
   },
 });
@@ -59,6 +63,10 @@ export const joinGroup = mutation({
 
     ctx.db.patch(args.groupId, {
       memberIds: [...existingGroup.memberIds, existingUser._id],
+    });
+
+    ctx.db.patch(existingUser._id, {
+      groups: [...existingUser.groups, args.groupId],
     });
 
     return existingGroup._id;

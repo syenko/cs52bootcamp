@@ -44,3 +44,34 @@ export const getAllMessages = query({
     return messages;
   },
 });
+
+export const getGroups = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    const groups = existingUser.groups;
+    const groupObjects = [];
+
+    for (const groupId of groups) {
+      const group = await ctx.db.get(groupId);
+      if (group) {
+        groupObjects.push(group);
+      }
+    }
+
+    return groupObjects;
+  },
+});

@@ -7,6 +7,7 @@ import { useConvexAuth } from "convex/react";
 import { LandingPage } from "./pages/landing-page";
 import { HomePage } from "./pages/home-page";
 import { LoadingScreen } from "./components/loading-screen";
+import { GroupPage } from "./pages/group-page";
 
 // Protected route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <HomePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/groups",
+    element: (
+      <ProtectedRoute>
+        <GroupPage />
       </ProtectedRoute>
     ),
   },
