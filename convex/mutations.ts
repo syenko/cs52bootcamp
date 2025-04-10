@@ -77,6 +77,54 @@ export const joinGroup = mutation({
   },
 });
 
+export const leaveGroup = mutation({
+  args: {
+    groupId: v.id("groups"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Check if user already exists
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+      .first();
+
+    if (!existingUser) {
+      throw new Error("User not found");
+    }
+
+    const existingGroup = await ctx.db.get(args.groupId);
+
+    if (!existingGroup) {
+      throw new Error("Group not found");
+    }
+
+    if (!existingGroup.memberIds.includes(existingUser._id)) {
+      throw new Error("User not in group");
+    }
+
+    ctx.db.patch(args.groupId, {
+      memberIds: existingGroup.memberIds.filter(
+        (id) => id !== existingUser._id
+      ),
+    });
+
+    if (existingGroup.memberIds.length === 0) {
+      await ctx.db.delete(args.groupId);
+    }
+
+    ctx.db.patch(existingUser._id, {
+      groups: existingUser.groups.filter((id) => id !== args.groupId),
+    });
+
+    return existingGroup._id;
+  },
+});
+
 export const createUser = mutation({
   args: {
     name: v.string(),
