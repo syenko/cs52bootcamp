@@ -61,6 +61,10 @@ export const joinGroup = mutation({
       throw new Error("Group not found");
     }
 
+    if (existingGroup.memberIds.includes(existingUser._id)) {
+      throw new Error("User already in group");
+    }
+
     ctx.db.patch(args.groupId, {
       memberIds: [...existingGroup.memberIds, existingUser._id],
     });
