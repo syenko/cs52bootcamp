@@ -192,3 +192,18 @@ export const createMessage = mutation({
     return messageId;
   },
 });
+
+export const saveFreeTimes = mutation({
+  args: {
+    userId: v.string(),
+    times: v.array(v.array(v.array(v.number())))
+  },
+
+  handler: async (ctx, { userId, times }) => {
+
+    await ctx.db.insert("freeTimes", {
+      userId,
+      times
+    });
+  }
+});
