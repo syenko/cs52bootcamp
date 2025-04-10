@@ -9,7 +9,7 @@ export default defineSchema({
     email: v.string(),
     clerkId: v.string(),
     createdAt: v.number(),
-    groups: v.array(v.string()),
+    groups: v.array(v.id("groups")),
   }).index("by_clerk_id", ["clerkId"]),
 
   messages: defineTable({
@@ -23,7 +23,7 @@ export default defineSchema({
   groups: defineTable({
     name: v.string(),
     createdAt: v.number(),
-    memberIds: v.array(v.string()),
+    memberIds: v.array(v.id("users")),
   }),
 
   freeTimes: defineTable({
